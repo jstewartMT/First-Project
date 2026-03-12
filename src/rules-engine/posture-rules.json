@@ -1,0 +1,160 @@
+{
+  "_comment": "MRBRO Business Rules Configuration — Human-readable reference. Authoritative logic lives in SQL stored procedures (004_rules_engine.sql). This file documents rules for non-SQL audiences.",
+  "version": "1.0.0",
+  "lastUpdated": "2026-03-12",
+
+  "eventRules": [
+    {
+      "ruleId": "R-COM-001",
+      "event": "ENGAGEMENT_BASIS_UPDATED",
+      "condition": "basis IN ('existing_el', 'existing_engagement_letter')",
+      "action": "Set COMMERCIAL readiness to EXISTING_EL_COVERS (Green)",
+      "exception": null,
+      "rationale": "If an existing engagement letter covers the matter, commercial readiness can be satisfied without a new EL"
+    },
+    {
+      "ruleId": "R-COM-002",
+      "event": "ENGAGEMENT_BASIS_UPDATED",
+      "condition": "basis IN ('master_agreement', 'master_agreement_covers')",
+      "action": "Set COMMERCIAL readiness to MASTER_AGREEMENT_COVERS (Green)",
+      "exception": null,
+      "rationale": "If a master agreement covers the matter, commercial readiness is satisfied"
+    },
+    {
+      "ruleId": "R-COM-003",
+      "event": "ENGAGEMENT_BASIS_UPDATED",
+      "condition": "basis = 'unclear' OR basis NOT IN known values",
+      "action": "Set COMMERCIAL readiness to BASIS_UNCLEAR (Amber)",
+      "exception": "Create COMMERCIAL_UNCLEAR exception (Medium, FinanceOps)",
+      "rationale": "If commercial basis is unclear, mark as amber/red and create exception for investigation"
+    },
+    {
+      "ruleId": "R-COM-004",
+      "event": "ENGAGEMENT_BASIS_UPDATED",
+      "condition": "basis IN ('new_el_required', 'new_engagement_letter')",
+      "action": "Set COMMERCIAL readiness to NEW_EL_REQUIRED (Red)",
+      "exception": "Create EL_REQUIRED_MISSING exception (High, FinanceOps)",
+      "rationale": "New EL required but not yet received — this is a blocking condition"
+    },
+    {
+      "ruleId": "R-GUI-001",
+      "event": "MATTER_CREATED",
+      "condition": "No OCG known at intake",
+      "action": "Set GUIDELINE readiness to NO_OCG_KNOWN (Unknown)",
+      "exception": null,
+      "rationale": "Do not auto-block the matter if no OCG is known. Unknown is a valid status."
+    },
+    {
+      "ruleId": "R-GUI-002",
+      "event": "OCG_RECEIVED",
+      "condition": "OCG document received",
+      "action": "Set GUIDELINE readiness to OCG_RECEIVED_NOT_PROCESSED (Amber)",
+      "exception": "Create OCG_NOT_PROCESSED exception (Medium, Billing)",
+      "rationale": "OCG received but not yet processed — amber until reviewed"
+    },
+    {
+      "ruleId": "R-GUI-003",
+      "event": "OCG_PROCESSED",
+      "condition": "OCG processed, no material restrictions",
+      "action": "Set GUIDELINE readiness to OCG_PROCESSED (Green). Resolve OCG_NOT_PROCESSED exception.",
+      "exception": null,
+      "rationale": "Clean OCG processing clears guideline readiness"
+    },
+    {
+      "ruleId": "R-GUI-004",
+      "event": "OCG_PROCESSED_RESTRICTIONS",
+      "condition": "OCG processed WITH material restrictions",
+      "action": "Set GUIDELINE readiness to OCG_MATERIAL_RESTRICTIONS (Amber). Resolve OCG_NOT_PROCESSED.",
+      "exception": "Create OCG_RESTRICTIONS exception (High, Billing)",
+      "rationale": "Material restrictions require billing team review and potentially modified billing procedures"
+    },
+    {
+      "ruleId": "R-RAT-001",
+      "event": "RATE_APPROVAL_UPDATED",
+      "condition": "status = 'mismatch'",
+      "action": "Set RATE readiness to RATE_MISMATCH (Red)",
+      "exception": "Create RATE_MISMATCH exception (High, Rates)",
+      "rationale": "Rate mismatch is a billing risk — applied rates don't match agreed rates"
+    },
+    {
+      "ruleId": "R-RAT-002",
+      "event": "RATE_APPROVAL_UPDATED",
+      "condition": "status = 'approved'",
+      "action": "Set RATE readiness to STANDARD_RATE (Green). Resolve all RATE and TK exceptions.",
+      "exception": null,
+      "rationale": "Rate approval clears rate and related staffing exceptions"
+    },
+    {
+      "ruleId": "R-STA-001",
+      "event": "NEW_TK_DETECTED",
+      "condition": "New timekeeper detected and rate approval is unresolved",
+      "action": "Set STAFFING readiness to NEW_TK_DETECTED (Amber)",
+      "exception": "Create TK_NOT_APPROVED exception (Medium, Rates)",
+      "rationale": "New timekeeper requires approval and rate confirmation"
+    },
+    {
+      "ruleId": "R-PRE-001",
+      "event": "PREBILL_MILESTONE",
+      "condition": "Unresolved staffing or rate exceptions remain",
+      "action": "Escalate severity of STAFFING and RATE exceptions (Medium→High, High→Critical). Set escalated exceptions to 'Escalated' status.",
+      "exception": "Create PREBILL_BLOCKER exception (Critical, FinanceOps) if high/critical exceptions exist",
+      "rationale": "At prebill milestone, unresolved exceptions become urgent and may block billing"
+    },
+    {
+      "ruleId": "R-EBI-001",
+      "event": "implicit (from readiness status)",
+      "condition": "eBilling expected AND setup pending",
+      "action": "EBILLING readiness = SETUP_PENDING (Amber)",
+      "exception": "Create EBILLING_SETUP_PENDING exception if not already open",
+      "rationale": "eBilling setup must be completed before invoice submission"
+    }
+  ],
+
+  "postureRollupRules": [
+    {
+      "priority": 1,
+      "condition": "Any escalated exception OR any critical exception",
+      "posture": "ESCALATION_REQUIRED",
+      "rationale": "Escalated or critical exceptions require leadership intervention"
+    },
+    {
+      "priority": 2,
+      "condition": "Any red readiness dimension OR any high-severity exception",
+      "posture": "RESTRICTED",
+      "rationale": "Red dimensions or high exceptions represent active billing risk"
+    },
+    {
+      "priority": 3,
+      "condition": "Any open exception (non-terminal)",
+      "posture": "READY_EXCEPTIONS",
+      "rationale": "Open exceptions need attention but don't block billing"
+    },
+    {
+      "priority": 4,
+      "condition": "Any unknown readiness dimension",
+      "posture": "READY_MONITORED",
+      "rationale": "Unknown dimensions are tracked but don't block — information may arrive later"
+    },
+    {
+      "priority": 5,
+      "condition": "All dimensions green AND no open exceptions",
+      "posture": "READY",
+      "rationale": "Fully ready for billing"
+    }
+  ],
+
+  "severityEscalationRules": [
+    {
+      "trigger": "Exception overdue (past due date)",
+      "action": "Low→Medium, Medium→High, High→Critical",
+      "autoEscalate": true,
+      "frequency": "Every 4 hours (Power Automate Flow 3)"
+    },
+    {
+      "trigger": "Prebill milestone reached",
+      "action": "Medium→High, High→Critical for STAFFING and RATE exceptions",
+      "autoEscalate": true,
+      "frequency": "On event"
+    }
+  ]
+}
