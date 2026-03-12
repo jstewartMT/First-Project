@@ -24,8 +24,9 @@ First-Project/
 
 ### Branching
 
-- The default branch should be used for stable, reviewed code.
+- The default branch is `master` and should contain stable, reviewed code.
 - Feature branches should use descriptive names (e.g., `feature/add-auth`, `fix/login-bug`).
+- Claude Code branches use the `claude/` prefix.
 
 ### Commits
 
@@ -43,7 +44,8 @@ First-Project/
 
 ## Conventions
 
-- Keep the repository clean — use a `.gitignore` appropriate for the project's language/framework.
+- Keep the repository clean — add a `.gitignore` appropriate for the project's language/framework once one is chosen.
+- No `.gitignore` exists yet; create one when adding the first source files.
 - Prefer editing existing files over creating new ones to avoid file bloat.
 - Do not commit secrets, credentials, or `.env` files.
 
